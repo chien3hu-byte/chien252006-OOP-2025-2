@@ -1,0 +1,145 @@
+================================================================================
+Lab 03: Basic Object-Oriented Techniques - Answers
+================================================================================
+
+EXERCISE 2 – Method Overloading
+================================
+
+Q: Varargs vs Array parameter – which do you prefer?
+
+  Preference: varargs (DigitalVideoDisc... dvds) is preferred over array
+  (DigitalVideoDisc[] dvdList) in this case because:
+
+  1. The caller does NOT need to explicitly create an array:
+       cart.addDigitalVideoDisc(dvd1, dvd2, dvd3);   // varargs – clean
+     vs
+       cart.addDigitalVideoDisc(new DigitalVideoDisc[]{dvd1, dvd2, dvd3}); // array – verbose
+
+  2. Varargs is backward-compatible with passing a single item or zero items.
+
+  3. Internally, Java converts varargs to an array, so the runtime cost is
+     identical. The benefit is purely at the call site (readability).
+
+  Caveat: If the array already exists (e.g. from an external source), passing
+  an array directly can be slightly clearer. But for ad-hoc multi-item calls,
+  varargs wins.
+
+================================================================================
+
+EXERCISE 3 – Parameter Passing
+================================
+
+Q1: After swap(jungleDVD, cinderellaDVD), why do the titles remain unchanged?
+
+  Java is ALWAYS pass-by-value.
+
+  When swap() is called, the JVM copies the VALUES of the references
+  (i.e. the memory addresses) into the local parameters o1 and o2.
+  Inside swap(), we swap o1 and o2 – but these are just local copies.
+  The original variables jungleDVD and cinderellaDVD in main() still point
+  to the same objects as before. The swap has NO visible effect outside the method.
+
+  Memory diagram (before swap returns):
+    main scope:
+      jungleDVD     ──►  DVD("Jungle")
+      cinderellaDVD ──►  DVD("Cinderella")
+
+    inside swap:
+      o1 (was jungleDVD)     now points to DVD("Cinderella")   [local change]
+      o2 (was cinderellaDVD) now points to DVD("Jungle")       [local change]
+
+  When swap() returns the local o1, o2 are discarded. main's variables are untouched.
+
+Q2: After changeTitle(jungleDVD, cinderellaDVD.getTitle()), why does jungleDVD's
+    title change?
+
+  Although the reference dvd inside changeTitle() is a copy, it still POINTS TO
+  the same DigitalVideoDisc object as jungleDVD in main().
+
+  dvd.setTitle(title) mutates the OBJECT itself (not the reference), so the
+  change is visible through jungleDVD as well.
+
+  The line "dvd = new DigitalVideoDisc(oldTitle);" only reassigns the LOCAL
+  copy of the reference – it does NOT affect jungleDVD in main().
+
+  Conclusion: Java is pass-by-value, but the VALUE passed for an object is its
+  reference (memory address). You CAN mutate the object's state through the
+  copied reference, but you CANNOT redirect the caller's variable to a different object.
+
+Q3: How to write a correct swap?
+
+  Use a single-element wrapper array:
+    DigitalVideoDisc[] ref1 = { dvdA };
+    DigitalVideoDisc[] ref2 = { dvdB };
+    correctSwap(ref1, ref2);
+    // ref1[0] is now dvdB, ref2[0] is now dvdA
+
+  Inside correctSwap we mutate array elements (objects), which IS visible
+  outside the method (same reason as changeTitle above).
+
+================================================================================
+
+EXERCISE 5 – Classifier Member vs Instance Member
+===================================================
+
+Classifier (static) member – nbDigitalVideoDiscs:
+  - Belongs to the CLASS, not to any particular instance.
+  - A SINGLE copy shared by all instances.
+  - Can be accessed without creating an object: DigitalVideoDisc.getNbDigitalVideoDiscs()
+  - Used here to auto-assign unique sequential IDs.
+  - Side-effect risk: any code can increment it, which could cause bugs if not carefully controlled.
+
+Instance member – id:
+  - Belongs to each OBJECT separately.
+  - Each DVD has its own id value.
+  - Initialized in the constructor from the current value of nbDigitalVideoDiscs.
+  - Lives as long as the object does.
+
+================================================================================
+
+EXERCISE 9 – String, StringBuilder, StringBuffer
+==================================================
+
+Results from ConcatenationInLoops (65,536 iterations, typical hardware):
+
+  String "+" operator   :  ~4500 ms
+  StringBuilder.append():  ~5 ms
+
+Why such a huge difference?
+
+  String is IMMUTABLE in Java. Every "s += x" statement:
+    1. Allocates a NEW String object of length (previous_length + 1)
+    2. Copies all previous characters into the new object
+    3. Appends the new character
+    4. The old String becomes unreachable garbage
+
+  After 65,536 iterations, the total characters COPIED grow as:
+    0 + 1 + 2 + ... + 65535  =  ~2 billion character copy operations.
+  This is O(n²) in time and produces O(n²) garbage bytes.
+
+  StringBuilder uses a MUTABLE internal char[] array.
+  append() amortizes resizing (doubles capacity when full) → O(n) total.
+  No intermediate objects → no garbage.
+
+StringBuffer vs StringBuilder:
+  StringBuffer  – thread-safe (all methods are synchronized) → slower.
+  StringBuilder – NOT thread-safe → faster (preferred for single-threaded code).
+
+Recommendation:
+  - Single-threaded string building → StringBuilder
+  - Multi-threaded string building  → StringBuffer
+  - Simple one-off concatenation    → String "+" is fine (compiler optimizes it anyway)
+
+================================================================================
+
+EXERCISE 4 – Debug Observations
+================================
+
+1. After swap(), jungleDVD.title is still "Jungle" because Java passed copies
+   of the references. The local swap inside the method does not affect main().
+
+2. After changing jungleDVD.title to "abc" in the Variables View during debug,
+   the Console printed "jungle dvd title: abc" – confirming that the debugger's
+   in-place variable edit was applied directly to the live object on the heap.
+
+================================================================================
