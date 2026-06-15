@@ -1,0 +1,82 @@
+===== answers.txt - Lab 04: Inheritance and Polymorphism =====
+
+--- Section 9: Constructors of whole classes and parent classes ---
+
+Q: Which classes are aggregates of other classes?
+A:
+- CompactDisc is an aggregate of Track (has-a relationship: CompactDisc has a List<Track>).
+- Book is an aggregate of String authors (has-a relationship: Book has a List<String>).
+- Cart is an aggregate of Media (Cart has a List<Media>).
+- Store is an aggregate of Media (Store has a List<Media>).
+
+All "whole" classes should initialize their "part" fields in constructors:
+- CompactDisc initializes tracks = new ArrayList<Track>() as a field default.
+- Book initializes authors = new ArrayList<String>() as a field default.
+- Cart initializes itemsOrdered = new ArrayList<Media>() as a field default.
+- Store initializes itemsInStore = new ArrayList<Media>() as a field default.
+
+--- Section 10: Unique item in a list ---
+
+Q: If the passing object is not an instance of Media (or Track), what happens in equals()?
+A:
+The method checks `if (!(o instanceof Media)) return false;`.
+If the passed object is not a Media instance, the cast would be unsafe, so we return false
+immediately — meaning the two objects are NOT equal. This prevents ClassCastException and
+correctly handles the case where unrelated objects are compared.
+
+--- Section 11: Polymorphism with toString() ---
+
+Q: Observe what happens when iterating an ArrayList<Media> and calling toString(). Explain.
+A:
+Each element in the list (whether CD, DVD, or Book) will call ITS OWN overridden toString()
+method — not the one in the abstract Media class (which is abstract).
+
+This is RUNTIME POLYMORPHISM (dynamic dispatch):
+- At compile time, the variable type is Media, so the compiler checks that toString() exists in Media.
+- At runtime, the JVM looks at the ACTUAL object type (CompactDisc, DigitalVideoDisc, or Book)
+  and calls the corresponding overridden toString() method.
+
+Result: even though we declared `List<Media>`, each object prints its own specific details
+(CD prints tracks, DVD prints director/length, Book prints authors). This is the essence of
+polymorphism — one interface, many behaviors.
+
+--- Section 12: Sort media in cart - Comparable vs Comparator ---
+
+Q: What class should implement the Comparable interface?
+A: The Media class should implement Comparable<Media>, since all media types share the
+   same natural ordering.
+
+Q: How should compareTo() be implemented?
+A: To implement the default "sort by title, then higher cost first" rule:
+   public int compareTo(Media other) {
+       int cmp = this.title.compareTo(other.title);
+       if (cmp != 0) return cmp;
+       return Float.compare(other.cost, this.cost); // higher cost first
+   }
+
+Q: Can we have TWO ordering rules (by title-cost AND by cost-title) using Comparable?
+A: NO. Comparable only allows ONE natural ordering per class (defined in compareTo()).
+   To support multiple orderings, we MUST use Comparator, because we can create
+   multiple Comparator instances, each with different compare() logic.
+   This is a key advantage of Comparator over Comparable.
+
+Q: If DVDs have a different ordering (title, then decreasing length, then cost), how to modify?
+A: Using Comparator is straightforward: override compare() for DigitalVideoDisc specifically,
+   or create a separate MediaComparatorDVDByTitleLengthCost class:
+
+   public int compare(Media m1, Media m2) {
+       int cmp = m1.getTitle().compareTo(m2.getTitle());
+       if (cmp != 0) return cmp;
+       // Decreasing length (only meaningful if both are DVDs)
+       if (m1 instanceof DigitalVideoDisc && m2 instanceof DigitalVideoDisc) {
+           int lenCmp = Integer.compare(((DigitalVideoDisc)m2).getLength(),
+                                        ((DigitalVideoDisc)m1).getLength());
+           if (lenCmp != 0) return lenCmp;
+       }
+       return Float.compare(m1.getCost(), m2.getCost());
+   }
+
+   If using Comparable, DVDs would need to override compareTo() — but since compareTo()
+   is defined in Media, you'd override it in DigitalVideoDisc. However, this still only
+   gives ONE ordering rule per class and can conflict with the parent's implementation.
+   The Comparator approach is cleaner and more flexible.
